@@ -1,0 +1,28 @@
+# Sources config for dynamic_sources_dag.py
+# Each source = one task instance (dynamic task mapping)
+
+sources:
+  - name: orders
+    conn_id: pg_orders
+    query: "SELECT * FROM orders WHERE updated_ts >= now() - interval '1 hour'"
+    sla_minutes: 60
+
+  - name: customers
+    conn_id: pg_customers
+    query: "SELECT * FROM customers WHERE updated_ts >= now() - interval '1 hour'"
+    sla_minutes: 60
+
+  - name: store_inventory
+    conn_id: pg_inventory
+    query: "SELECT * FROM store_inventory WHERE updated_ts >= now() - interval '1 hour'"
+    sla_minutes: 90
+
+  - name: clickstream
+    conn_id: kafka_clickstream
+    query: "SELECT * FROM kafka_clickstream WHERE ts >= now() - interval '1 hour'"
+    sla_minutes: 15
+
+  - name: price_changes
+    conn_id: pg_pricing
+    query: "SELECT * FROM price_changes WHERE updated_ts >= now() - interval '1 hour'"
+    sla_minutes: 30

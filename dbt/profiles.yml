@@ -1,0 +1,46 @@
+# dbt profiles — targets: ci / dev / stage / prod
+# Each target points to a separate schema for env isolation.
+
+data_platform:
+  target: dev
+
+  outputs:
+    ci:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      user: "{{ env_var('DBT_USER', 'dbt') }}"
+      password: "{{ env_var('DBT_PASSWORD', 'dbt') }}"
+      port: 5432
+      dbname: dbt_ci
+      schema: ci
+      threads: 4
+
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      user: "{{ env_var('DBT_USER', 'dbt') }}"
+      password: "{{ env_var('DBT_PASSWORD', 'dbt') }}"
+      port: 5432
+      dbname: data_dev
+      schema: dev
+      threads: 4
+
+    stage:
+      type: postgres
+      host: "{{ env_var('DBT_HOST_STAGE') }}"
+      user: "{{ env_var('DBT_USER_STAGE') }}"
+      password: "{{ env_var('DBT_PASSWORD_STAGE') }}"
+      port: 5432
+      dbname: data_stage
+      schema: stage
+      threads: 8
+
+    prod:
+      type: postgres
+      host: "{{ env_var('DBT_HOST_PROD') }}"
+      user: "{{ env_var('DBT_USER_PROD') }}"
+      password: "{{ env_var('DBT_PASSWORD_PROD') }}"
+      port: 5432
+      dbname: data_prod
+      schema: prod
+      threads: 8

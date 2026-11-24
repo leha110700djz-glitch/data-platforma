@@ -1,0 +1,80 @@
+# Cube-core semantic model: order_revenue
+# Measures + dimensions for BI / ad-hoc analytics via REST API
+# Pre-aggregations roll-up by day → fast queries from dashboard
+
+cubes:
+  - name: order_revenue
+    sql: SELECT * FROM analytics.fact_sales_daily
+    title: "Order Revenue (daily)"
+
+    measures:
+      - name: revenue
+        sql: revenue_total
+        type: sum
+        title: "Total Revenue"
+        format: currency
+
+      - name: orders_count
+        sql: orders_count
+        type: sum
+        title: "Orders Count"
+        format: number
+
+      - name: quantity
+        sql: quantity_total
+        type: sum
+        title: "Items Sold"
+
+      - name: avg_order_value
+        sql: "{revenue} / NULLIF({orders_count}, 0)"
+        type: number
+        title: "Avg Order Value"
+        format: currency
+
+      - name: distinct_stores
+        sql: store_id
+        type: countDistinct
+        title: "Active Stores"
+
+    dimensions:
+      - name: order_date
+        sql: order_date
+        type: time
+        primaryKey: false
+
+      - name: store_id
+        sql: store_id
+        type: number
+
+      - name: product_id
+        sql: product_id
+        type: number
+
+      - name: status
+        sql: status
+        type: string
+
+    pre_aggregations:
+      - name: daily_revenue_by_store
+        measures: [revenue, orders_count, quantity]
+        dimensions: [store_id]
+        timeDimension: order_date
+        granularity: day
+        partitionGranularity: month
+        refreshKey:
+          every: 1 hour
+        scheduledRefresh: true
+        indexes:
+          - sql: store_id
+
+      - name: monthly_revenue
+        measures: [revenue, orders_count]
+        timeDimension: order_date
+        granularity: month
+        refreshKey:
+          every: 6 hours
+        scheduledRefresh: true
+
+    segments:
+      - name: completed_orders
+        sql: "{CUBE}.status = 'completed'"

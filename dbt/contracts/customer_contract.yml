@@ -1,0 +1,55 @@
+# Data Contract: customers
+contract:
+  name: customers
+  version: 1.1.0
+  owner:
+    name: data-platform-team
+    email: data-platform@platform.example.com
+
+  description: |
+    Customer master data. Consumed by: mart_customer_rfm, snap_customer_demographics,
+    Data Vault 2.0 hub_customer, ML-churn model.
+
+  schema:
+    - name: customer_id
+      type: bigint
+      required: true
+      unique: true
+    - name: email
+      type: varchar
+      required: false
+      pattern: "^[\\w.+-]+@[\\w.-]+\\.[a-zA-Z]{2,}$"
+    - name: phone
+      type: varchar
+      required: false
+      pattern: "^\\+7\\d{10}$"
+    - name: city
+      type: varchar
+      required: true
+    - name: registration_ts
+      type: timestamp
+      required: true
+
+  data_quality:
+    tests:
+      - dbt_utils.test_unique:
+          column_name: customer_id
+      - tests.test_email_format
+      - tests.test_phone_format
+
+  sla:
+    freshness: PT24H
+    availability: 0.999
+
+  lineage:
+    upstream:
+      - source: postgres.customers
+        type: table
+    downstream:
+      - consumer: mart_customer_rfm
+      - consumer: hub_customer
+      - consumer: sat_customer_demographics
+
+  change_management:
+    review_required: true
+    approvers: [data-eng-lead, crm-team-lead]

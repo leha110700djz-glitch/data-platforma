@@ -1,0 +1,89 @@
+# Data Contract: orders
+# Schema + SLA + SLO + ownership — enforced in dbt 1.7 via contracts
+# Reviewed by downstream teams via MR before any change.
+
+contract:
+  name: orders
+  version: 1.0.0
+  owner:
+    name: data-platform-team
+    email: data-platform@platform.example.com
+    slack: "#data-platform"
+
+  description: |
+    Raw orders from PostgreSQL `orders` table.
+    Consumed by: mart_customer_rfm, fact_sales_daily, ML-uplift pipeline.
+
+  schema:
+    - name: order_id
+      type: bigint
+      required: true
+      unique: true
+      description: "Primary business key"
+    - name: customer_id
+      type: bigint
+      required: true
+      description: "FK to customers.customer_id"
+    - name: product_id
+      type: bigint
+      required: true
+    - name: quantity
+      type: int
+      required: true
+      minimum: 1
+    - name: unit_price
+      type: numeric(12,2)
+      required: true
+      minimum: 0
+    - name: order_ts
+      type: timestamp
+      required: true
+    - name: status
+      type: varchar
+      required: true
+      accepted_values: ["pending", "confirmed", "shipped", "completed", "cancelled"]
+    - name: store_id
+      type: int
+      required: true
+
+  data_quality:
+    tests:
+      - dbt_utils.test_unique:
+          column_name: order_id
+      - dbt_utils.test_not_null:
+          column_name: order_id
+      - tests.test_no_negative_quantity:
+          column_name: quantity
+    expectations:
+      completeness: 0.99
+      uniqueness: 1.0
+      validity: 0.95
+
+  sla:
+    freshness: PT1H            # data must be at most 1 hour old
+    availability: 0.999
+
+  slo:
+    error_budget: 0.001
+    recovery_time: PT30M
+
+  lineage:
+    upstream:
+      - source: postgres.orders
+        type: table
+        schedule: streaming
+    downstream:
+      - consumer: mart_customer_rfm
+        type: dbt_model
+      - consumer: fact_sales_daily
+        type: dbt_model
+      - consumer: ml-uplift-pipeline
+        type: job
+        expectation: features_ready_before "08:00 UTC"
+
+  change_management:
+    review_required: true
+    approvers:
+      - data-eng-lead
+      - analytics-lead
+    notice_period: P3D         # 3 days notice for breaking changes

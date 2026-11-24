@@ -1,0 +1,33 @@
+# Great Expectations checkpoint: orders
+# Run inside Airflow via GreatExpectationsCheckpointOperator before staging load.
+
+name: orders_checkpoint
+config_version: 1
+
+class_name: Checkpoint
+
+validations:
+  - batch_request:
+      datasource_name: postgres_orders
+      data_connector_name: default_runtime_data_connector
+      data_asset_name: orders
+      runtime_parameters:
+        query: "SELECT * FROM orders WHERE order_ts >= now() - interval '1 day'"
+      batch_identifiers:
+        conn_id: pg_orders
+    expectation_suite_name: orders_suite
+
+action_list:
+  - name: store_validation_result
+    action:
+      class_name: StoreValidationResultAction
+  - name: store_evaluation_params
+    action:
+      class_name: StoreEvaluationParametersAction
+  - name: update_data_docs
+    action:
+      class_name: UpdateDataDocsAction
+
+result_format:
+  result_format: COMPLETE
+  partial_unexpected_count: 20

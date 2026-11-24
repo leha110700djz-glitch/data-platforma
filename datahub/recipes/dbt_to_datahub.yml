@@ -1,0 +1,13 @@
+# DataHub ingestion recipe: dbt manifest + catalog
+source:
+  type: dbt
+  config:
+    manifest_path: ${DBT_TARGET_DIR}/manifest.json
+    catalog_path:  ${DBT_TARGET_DIR}/catalog.json
+    target_platform: postgres
+    strip_user_ids_from_email: true
+
+sink:
+  type: datahub-rest
+  config:
+    server: https://datahub.data-platform.internal

@@ -1,0 +1,86 @@
+# Helm values for Airflow on Kubernetes (official chart: airflow/airflow)
+# Multi-stage Docker image, dedicated node pool for Spark workloads.
+
+airflow:
+  image:
+    repository: registry.data-platform.internal/airflow
+    tag: latest
+    pullPolicy: Always
+
+  executor: KubernetesExecutor            # each task = isolated pod
+
+  # Workers scheduled on dedicated spark-pool nodes
+  workers:
+    resources:
+      requests: {cpu: "1", memory: "2Gi"}
+      limits:   {cpu: "2", memory: "4Gi"}
+    nodeSelector:
+      workload-type: airflow
+    tolerations:
+      - key: "workload-type"
+        value: "airflow"
+        effect: "NoSchedule"
+
+  scheduler:
+    resources:
+      requests: {cpu: "1", memory: "2Gi"}
+      limits:   {cpu: "2", memory: "4Gi"}
+
+  # Airflow config overrides
+  config:
+    core:
+      executor: KubernetesExecutor
+      parallelism: "32"
+      max_active_runs_per_dag: "1"
+      dags_are_paused_at_creation: "False"
+      load_default_dags: "False"
+    scheduler:
+      use_task_schedule_log: "True"
+      dag_stale_not_seen_duration: "60"
+    kubernetes:
+      namespace: airflow
+      pod_template_file: /opt/airflow/pod_template.yaml
+    api:
+      auth_backends: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.kerberos_auth
+    smtp:
+      smtp_host: mail.data-platform.internal
+      smtp_mail_from: data-platform-alerts@platform.example.com
+
+  ingress:
+    enabled: true
+    hosts:
+      - name: airflow.data-platform.internal
+        tls:
+          enabled: true
+          secretName: airflow-tls
+
+  # External DB — managed PostgreSQL 15 (HA replica)
+  postgresql:
+    enabled: false                          # use external managed PG
+  data:
+    metadataSecretName: airflow-metadata-secret
+
+  # GitSync — sync DAGs from this repo
+  dags:
+    gitSync:
+      enabled: true
+      repo: https://gitlab.data-platform.internal/data-platform/data-platform.git
+      branch: main
+      subPath: airflow/dags
+      depth: 1
+      wait: 60
+
+  logs:
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClassName: fast-ssd
+
+  # External S3 (MinIO) for XCom backend and logs
+  extraEnv:
+    - name: AIRFLOW__CORE__XCOM_BACKEND
+      value: airflow.providers.amazon.aws.log.S3XComBackend
+    - name: AIRFLOW__LOGGING__REMOTE_LOGGING
+      value: "True"
+    - name: AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID
+      value: aws_s3_logs

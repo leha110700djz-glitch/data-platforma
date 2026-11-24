@@ -1,0 +1,19 @@
+# DataHub ingestion recipe: Airflow metadata
+# Runs in CI/CD after successful deploy — keeps lineage fresh.
+
+source:
+  type: airflow
+  config:
+    connect_uri: http://airflow.data-platform.internal:8080
+    username: ${AIRFLOW_USER}
+    password: ${AIRFLOW_PASSWORD}
+    verify_ssl: true
+    dag_filter:
+      allowlist: ["sales_daily_dag", "dynamic_sources_dag", "spark_k8s_dag"]
+
+sink:
+  type: datahub-rest
+  config:
+    server: https://datahub.data-platform.internal
+
+# CLI: datahub ingest -c datahub/recipes/airflow_to_datahub.yml

@@ -1,0 +1,50 @@
+# Multi-stage Dockerfile for Airflow
+# Final image: <350 MB — distroless-based for security & size
+
+# ─── Stage 1: build deps ─────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+# Install build deps for psycopg / aiohttp / cryptography
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --user --no-warn-script-location \
+        --index-url https://pypi.org/simple \
+        -r requirements.txt
+
+# ─── Stage 2: runtime ────────────────────────────────────────────────
+FROM gcr.io/distroless/python3-debian12:nonroot
+
+LABEL org.opencontainers.image.title="data-platform-airflow" \
+      org.opencontainers.image.description="Airflow 2.9 runtime for data-platform" \
+      org.opencontainers.image.source="https://gitlab.data-platform.internal/data-platform/data-platform" \
+      org.opencontainers.image.licenses="MIT"
+
+WORKDIR /opt/airflow
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Copy DAGs, plugins, dbt, spark jobs
+COPY airflow/dags     ./dags
+COPY airflow/plugins  ./plugins
+COPY dbt              ./dbt
+COPY spark/jobs       ./spark/jobs
+COPY dq               ./dq
+COPY semantic_layer   ./semantic_layer
+
+ENV PYTHONPATH=/opt/airflow/plugins:/opt/airflow \
+    PATH=/root/.local/bin:$PATH \
+    AIRFLOW_HOME=/opt/airflow
+
+# distroless: nonroot user, no shell — minimal attack surface
+USER nonroot
+
+ENTRYPOINT ["python", "-m", "airflow"]
