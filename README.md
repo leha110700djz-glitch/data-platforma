@@ -164,7 +164,7 @@ MIT — код можно свободно переиспользовать. К�
 - **Telegram:** [@dobrycode](https://t.me/dobrycode)
 - **Email:** chervak_2016@mail.ru
 - **Phone:** +7 (993) 622-81-82
-- **GitHub:** [github.com/dobrycode](https://github.com/dobrycode)
+
 
 ---
 
